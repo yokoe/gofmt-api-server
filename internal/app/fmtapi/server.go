@@ -1,9 +1,11 @@
 package fmtapi
 
 import (
-	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+
+	"github.com/yokoe/gofmt-api-server/internal/pkgs/formatter"
 )
 
 // Server represents api server
@@ -31,7 +33,11 @@ func formatHandler(w http.ResponseWriter, r *http.Request) {
 	result, err := processFormatRequest(r)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintln(w, err)
+		if len(result) == 0 {
+			fmt.Fprintln(w, err)
+		} else {
+			fmt.Fprintln(w, result)
+		}
 		return
 	}
 	fmt.Fprintf(w, result)
@@ -42,15 +48,15 @@ func processFormatRequest(r *http.Request) (string, error) {
 		return "", fmt.Errorf("unsupported method %s", r.Method)
 	}
 
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(r.Body); err != nil {
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
 		return "", err
 	}
-	body := buf.String()
+	body := string(buf)
 
 	if len(body) == 0 {
 		return "", fmt.Errorf("no body")
 	}
 
-	return body, nil
+	return formatter.Format(body)
 }
